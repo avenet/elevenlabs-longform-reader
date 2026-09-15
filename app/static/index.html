@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Longform Reader</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Source+Sans+3:wght@400;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <div class="atmosphere" aria-hidden="true"></div>
+    <main class="shell">
+      <header class="brand">
+        <p class="brand-mark">Longform Reader</p>
+        <p class="lede">Paste or upload a long text, then listen as sections are generated.</p>
+      </header>
+
+      <form id="reading-form" class="compose">
+        <label class="field">
+          <span>Title</span>
+          <input id="title" name="title" type="text" placeholder="Optional title" />
+        </label>
+
+        <label class="field">
+          <span>Voice</span>
+          <select id="voice_id" name="voice_id"></select>
+        </label>
+
+        <label class="field grow">
+          <span>Text</span>
+          <textarea
+            id="text"
+            name="text"
+            rows="10"
+            placeholder="Paste a chapter, article, or any long-form text…"
+          ></textarea>
+        </label>
+
+        <label class="field file-field">
+          <span>Or upload .txt / .pdf</span>
+          <input id="file" name="file" type="file" accept=".txt,.pdf,text/plain,application/pdf" />
+        </label>
+
+        <div class="actions">
+          <button type="submit" id="submit-btn">Generate reading</button>
+          <p id="form-error" class="error" hidden></p>
+        </div>
+      </form>
+
+      <section id="player-panel" class="player-panel" hidden>
+        <div class="player-header">
+          <div>
+            <h2 id="reading-title">Reading</h2>
+            <p id="reading-status" class="status-line">Queued</p>
+          </div>
+          <audio id="audio" controls preload="none"></audio>
+        </div>
+
+        <ol id="section-list" class="section-list"></ol>
+      </section>
+    </main>
+    <script src="/static/app.js"></script>
+  </body>
+</html>
