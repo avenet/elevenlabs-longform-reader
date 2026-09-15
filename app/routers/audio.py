@@ -5,7 +5,7 @@ from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.models import Reading, Section, SectionStatus
+from app.models import Reading, SectionStatus
 
 router = APIRouter(prefix="/api/readings", tags=["audio"])
 

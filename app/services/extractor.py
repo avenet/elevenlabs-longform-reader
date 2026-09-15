@@ -4,7 +4,6 @@ from pathlib import Path
 
 from pypdf import PdfReader
 
-
 SUPPORTED_EXTENSIONS = {".txt", ".pdf"}
 
 

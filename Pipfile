@@ -14,6 +14,11 @@ pypdf = "*"
 aiofiles = "*"
 
 [dev-packages]
+pytest = "*"
+pytest-asyncio = "*"
+ruff = "*"
+httpx = "*"
+pre-commit = "*"
 
 [requires]
 python_version = "3.10"

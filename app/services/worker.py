@@ -35,7 +35,9 @@ def compute_reading_status(sections: list[Section]) -> ReadingStatus:
     if SectionStatus.processing in statuses or SectionStatus.pending in statuses:
         if SectionStatus.ready in statuses or SectionStatus.failed in statuses:
             return ReadingStatus.processing
-        return ReadingStatus.processing if SectionStatus.processing in statuses else ReadingStatus.queued
+        if SectionStatus.processing in statuses:
+            return ReadingStatus.processing
+        return ReadingStatus.queued
     return ReadingStatus.partial
 
 
@@ -107,8 +109,8 @@ async def _worker_loop() -> None:
 
             semaphore = asyncio.Semaphore(settings.worker_concurrency)
 
-            async def run_one(sid: int) -> None:
-                async with semaphore:
+            async def run_one(sid: int, limiter: asyncio.Semaphore = semaphore) -> None:
+                async with limiter:
                     await _process_section(sid)
 
             await asyncio.gather(*(run_one(sid) for sid in section_ids))
