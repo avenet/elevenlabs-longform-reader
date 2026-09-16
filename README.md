@@ -52,7 +52,10 @@ Common shortcuts (`pipenv run …` or `make …`):
 | `test-unit` | Pytest without live ElevenLabs |
 | `test-live` | Live ElevenLabs integration tests |
 | `check` | Lint + mocked tests |
+| `install-hooks` | Install git pre-commit (runs `fmt`, `lint`, `test`) |
 | `make help` | List Makefile targets |
+
+After cloning, run `make install-hooks` once so every commit runs `make fmt`, `make lint`, and `make test`.
 
 ## Usage
 

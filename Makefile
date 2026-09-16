@@ -1,4 +1,4 @@
-.PHONY: help hlp fmt lint lint-fixup test test-unit test-live serve check
+.PHONY: help hlp fmt lint lint-fixup test test-unit test-live serve check install-hooks
 
 help: ## Show available targets
 	@awk 'BEGIN {FS = ":.*##"} /^[-a-zA-Z0-9_]+:.*##/ {printf "  %-12s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -28,3 +28,6 @@ serve: ## Start the FastAPI app with reload
 
 check: ## Lint and run mocked tests
 	pipenv run check
+
+install-hooks: ## Install pre-commit hooks (fmt, lint, test before each commit)
+	pipenv run pre-commit install
