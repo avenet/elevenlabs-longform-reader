@@ -109,7 +109,7 @@ Open [http://127.0.0.1:8000](http://127.0.0.1:8000). API docs: [http://127.0.0.1
 | `test-live` | Live ElevenLabs (`ELEVENLABS_TEST_API_KEY`) |
 | `check` | Lint + mocked tests |
 | `cov` | Coverage report for mocked suite |
-| `install-hooks` | Pre-commit: `fmt`, `lint`, `test` |
+| `install-hooks` | Pre-commit: `fmt`, `lint`, `test-unit` |
 
 ## Testing
 
@@ -184,3 +184,7 @@ curl -s http://127.0.0.1:8000/api/readings/1
 ```bash
 curl -OJ http://127.0.0.1:8000/api/readings/1/sections/0/audio
 ```
+
+## License
+
+MIT — see [LICENSE](LICENSE).
