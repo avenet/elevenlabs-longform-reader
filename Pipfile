@@ -19,6 +19,7 @@ pytest-asyncio = "*"
 ruff = "*"
 httpx = "*"
 pre-commit = "*"
+pytest-cov = "*"
 
 [scripts]
 lint = "ruff check ."
@@ -29,6 +30,7 @@ test-unit = "pytest -m 'not integration'"
 test-live = "pytest -m integration"
 serve = "uvicorn app.main:app --reload"
 check = "bash -c 'ruff check . && pytest -m \"not integration\"'"
+cov = "pytest -m 'not integration' --cov=app --cov-report=term-missing"
 
 [requires]
 python_version = "3.14"

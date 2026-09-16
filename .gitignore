@@ -7,6 +7,8 @@ __pycache__/
 media/
 data/
 *.db
+.coverage
+htmlcov/
 .DS_Store
 .idea/
 .vscode/
