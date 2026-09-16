@@ -104,6 +104,42 @@ textarea {
   min-height: 12rem;
 }
 
+.field.is-disabled {
+  opacity: 0.45;
+}
+
+.field.is-disabled textarea,
+.field.is-disabled input[type="file"] {
+  cursor: not-allowed;
+}
+
+.file-row {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.file-chosen {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--ink-muted);
+  font-size: 0.95rem;
+}
+
+.file-clear {
+  background: transparent;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  padding: 0.35rem 0.7rem;
+  font-weight: 500;
+}
+
+.file-clear:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.06);
+  transform: none;
+}
+
 input:focus,
 select:focus,
 textarea:focus {

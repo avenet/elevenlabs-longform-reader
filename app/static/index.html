@@ -32,7 +32,7 @@
           <select id="voice_id" name="voice_id"></select>
         </label>
 
-        <label class="field grow">
+        <label class="field grow" id="text-field">
           <span>Text</span>
           <textarea
             id="text"
@@ -42,10 +42,18 @@
           ></textarea>
         </label>
 
-        <label class="field file-field">
+        <div class="field file-field" id="file-field">
           <span>Or upload .txt / .pdf</span>
-          <input id="file" name="file" type="file" accept=".txt,.pdf,text/plain,application/pdf" />
-        </label>
+          <div class="file-row">
+            <input id="file" name="file" type="file" accept=".txt,.pdf,text/plain,application/pdf" />
+            <div id="file-chosen" class="file-chosen" hidden>
+              <span id="file-name"></span>
+              <button type="button" id="file-clear" class="file-clear" aria-label="Clear selected file">
+                Clear
+              </button>
+            </div>
+          </div>
+        </div>
 
         <div class="actions">
           <button type="submit" id="submit-btn">Generate reading</button>

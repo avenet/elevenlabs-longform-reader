@@ -2,6 +2,13 @@ const form = document.getElementById("reading-form");
 const submitBtn = document.getElementById("submit-btn");
 const formError = document.getElementById("form-error");
 const voiceSelect = document.getElementById("voice_id");
+const textInput = document.getElementById("text");
+const textField = document.getElementById("text-field");
+const fileInput = document.getElementById("file");
+const fileField = document.getElementById("file-field");
+const fileChosen = document.getElementById("file-chosen");
+const fileName = document.getElementById("file-name");
+const fileClear = document.getElementById("file-clear");
 const playerPanel = document.getElementById("player-panel");
 const readingTitle = document.getElementById("reading-title");
 const readingStatus = document.getElementById("reading-status");
@@ -12,6 +19,29 @@ let currentReadingId = null;
 let pollTimer = null;
 let playIndex = 0;
 let autoAdvance = true;
+
+function syncSourceInputs() {
+  const hasFile = Boolean(fileInput.files && fileInput.files[0]);
+  const hasText = Boolean(textInput.value.trim());
+
+  textInput.disabled = hasFile;
+  textField.classList.toggle("is-disabled", hasFile);
+  fileInput.disabled = hasText && !hasFile;
+  fileField.classList.toggle("is-disabled", hasText && !hasFile);
+
+  if (hasFile) {
+    fileChosen.hidden = false;
+    fileName.textContent = fileInput.files[0].name;
+  } else {
+    fileChosen.hidden = true;
+    fileName.textContent = "";
+  }
+}
+
+function clearSelectedFile() {
+  fileInput.value = "";
+  syncSourceInputs();
+}
 
 async function loadVoices() {
   try {
@@ -156,6 +186,10 @@ audio.addEventListener("ended", async () => {
   }
 });
 
+textInput.addEventListener("input", syncSourceInputs);
+fileInput.addEventListener("change", syncSourceInputs);
+fileClear.addEventListener("click", clearSelectedFile);
+
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
   showError("");
@@ -164,8 +198,8 @@ form.addEventListener("submit", async (event) => {
     pollTimer = null;
   }
 
-  const text = document.getElementById("text").value.trim();
-  const file = document.getElementById("file").files[0];
+  const text = textInput.value.trim();
+  const file = fileInput.files[0];
   if (!text && !file) {
     showError("Paste some text or upload a .txt / .pdf file.");
     return;
@@ -212,4 +246,5 @@ form.addEventListener("submit", async (event) => {
   }
 });
 
+syncSourceInputs();
 loadVoices();
