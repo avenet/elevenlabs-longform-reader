@@ -1,6 +1,9 @@
 import hashlib
+import os
 import re
 import shutil
+import tempfile
+import threading
 from pathlib import Path
 from typing import Protocol
 
@@ -8,6 +11,9 @@ from elevenlabs.client import ElevenLabs
 
 from app.config import settings
 from app.services.storage import cache_audio_path
+
+_cache_locks_guard = threading.Lock()
+_cache_locks: dict[str, threading.Lock] = {}
 
 
 class TTSClient(Protocol):
@@ -27,6 +33,15 @@ def build_cache_key(voice_id: str, model_id: str, text: str) -> str:
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
+def _lock_for_cache_key(cache_key: str) -> threading.Lock:
+    with _cache_locks_guard:
+        lock = _cache_locks.get(cache_key)
+        if lock is None:
+            lock = threading.Lock()
+            _cache_locks[cache_key] = lock
+        return lock
+
+
 def get_client(*, timeout: float | None = None) -> ElevenLabs:
     api_key = (settings.elevenlabs_api_key or "").strip()
     if not api_key or api_key == "your_api_key_here":
@@ -35,6 +50,33 @@ def get_client(*, timeout: float | None = None) -> ElevenLabs:
         api_key=api_key,
         timeout=settings.request_timeout_seconds if timeout is None else timeout,
     )
+
+
+def _copy_cached_audio(cached: Path, destination: Path) -> Path:
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(cached, destination)
+    return destination
+
+
+def _write_cache_atomically(cached: Path, audio_bytes: bytes) -> None:
+    if not audio_bytes:
+        raise RuntimeError("ElevenLabs returned empty audio")
+
+    cached.parent.mkdir(parents=True, exist_ok=True)
+    fd, temp_name = tempfile.mkstemp(prefix=f".{cached.stem}.", suffix=".tmp", dir=cached.parent)
+    temp_path = Path(temp_name)
+    try:
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(audio_bytes)
+            handle.flush()
+            os.fsync(handle.fileno())
+        if temp_path.stat().st_size == 0:
+            raise RuntimeError("ElevenLabs returned empty audio")
+        os.replace(temp_path, cached)
+    except Exception:
+        if temp_path.exists():
+            temp_path.unlink(missing_ok=True)
+        raise
 
 
 def generate_speech(
@@ -51,29 +93,29 @@ def generate_speech(
     destination.parent.mkdir(parents=True, exist_ok=True)
 
     if cached.exists() and cached.stat().st_size > 0:
-        shutil.copyfile(cached, destination)
-        return destination
+        return _copy_cached_audio(cached, destination)
 
-    active_client = client or get_client(timeout=timeout)
-    audio_iter = active_client.text_to_speech.convert(
-        voice_id=voice_id,
-        text=text,
-        model_id=model_id,
-        output_format="mp3_44100_128",
-    )
+    lock = _lock_for_cache_key(cache_key)
+    with lock:
+        if cached.exists() and cached.stat().st_size > 0:
+            return _copy_cached_audio(cached, destination)
 
-    chunks: list[bytes] = []
-    for chunk in audio_iter:
-        if isinstance(chunk, bytes):
-            chunks.append(chunk)
+        active_client = client or get_client(timeout=timeout)
+        audio_iter = active_client.text_to_speech.convert(
+            voice_id=voice_id,
+            text=text,
+            model_id=model_id,
+            output_format="mp3_44100_128",
+        )
 
-    audio_bytes = b"".join(chunks)
-    if not audio_bytes:
-        raise RuntimeError("ElevenLabs returned empty audio")
+        chunks: list[bytes] = []
+        for chunk in audio_iter:
+            if isinstance(chunk, bytes):
+                chunks.append(chunk)
 
-    cached.write_bytes(audio_bytes)
-    shutil.copyfile(cached, destination)
-    return destination
+        audio_bytes = b"".join(chunks)
+        _write_cache_atomically(cached, audio_bytes)
+        return _copy_cached_audio(cached, destination)
 
 
 def list_voices(*, client: TTSClient | None = None) -> list[dict]:
