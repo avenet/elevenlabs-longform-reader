@@ -31,7 +31,7 @@ jobs:
       - name: Install dependencies
         env:
           PIPENV_VENV_IN_PROJECT: "1"
-        run: pipenv install --dev
+        run: pipenv install --deploy --dev
 
       - name: Ruff
         run: pipenv run ruff check .
