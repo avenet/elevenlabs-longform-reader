@@ -6,7 +6,9 @@ Intended GitHub repository name: `elevenlabs-longform-reader` (local folder may 
 
 ## Demo
 
-Screenshot / short GIF coming in a follow-up commit. Until then, run the app locally and create a reading to see progressive section playback.
+![Demo flow](docs/demo.gif)
+
+Live local capture: paste text, choose a voice, generate, then listen while sections finish.
 
 ## Why this project
 
