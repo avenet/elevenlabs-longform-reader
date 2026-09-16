@@ -9,8 +9,9 @@ from fastapi.staticfiles import StaticFiles
 from app.db import init_db
 from app.routers import audio, readings, voices
 from app.services.errors import GENERIC_INTERNAL_MESSAGE, log_internal_error
+from app.services.metrics import snapshot
 from app.services.storage import ensure_storage
-from app.services.worker import recover_pending, start_worker
+from app.services.worker import queue_depth, recover_pending, start_worker
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 
@@ -52,3 +53,16 @@ def index() -> FileResponse:
 @app.get("/favicon.ico")
 def favicon() -> FileResponse:
     return FileResponse(STATIC_DIR / "favicon.svg", media_type="image/svg+xml")
+
+
+@app.get("/api/metrics")
+def get_metrics() -> dict:
+    counters = snapshot()
+    hits = counters.get("tts_cache_hits", 0)
+    misses = counters.get("tts_cache_misses", 0)
+    total = hits + misses
+    return {
+        "counters": counters,
+        "queue_depth": queue_depth(),
+        "cache_hit_rate": (hits / total) if total else None,
+    }

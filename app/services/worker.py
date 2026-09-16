@@ -9,6 +9,7 @@ from app.config import settings
 from app.db import SessionLocal
 from app.models import Reading, ReadingStatus, Section, SectionStatus, utcnow
 from app.services.errors import is_retryable, user_facing_error
+from app.services.metrics import incr, log_event
 from app.services.storage import section_audio_path
 from app.services.tts import generate_speech
 
@@ -99,6 +100,15 @@ async def _process_section(section_id: int) -> None:
                 section.error_message = None
                 section.next_retry_at = None
                 db.commit()
+                incr("sections_generated")
+                incr("characters_generated", section.char_count)
+                log_event(
+                    "section_ready",
+                    reading_id=reading.id,
+                    section_id=section.id,
+                    attempt_count=section.attempt_count,
+                    chars=section.char_count,
+                )
                 break
             except Exception as exc:
                 retryable = is_retryable(exc)
@@ -110,6 +120,15 @@ async def _process_section(section_id: int) -> None:
                     section.status = SectionStatus.pending
                     section.next_retry_at = utcnow() + timedelta(seconds=delay)
                     db.commit()
+                    incr("tts_retries")
+                    log_event(
+                        "section_retry",
+                        reading_id=reading.id,
+                        section_id=section.id,
+                        attempt_count=section.attempt_count,
+                        delay_seconds=delay,
+                        error_category="retryable",
+                    )
                     await asyncio.sleep(delay)
                     db.refresh(section)
                     db.refresh(reading)
@@ -120,6 +139,14 @@ async def _process_section(section_id: int) -> None:
                 section.audio_path = None
                 section.next_retry_at = None
                 db.commit()
+                incr("sections_failed")
+                log_event(
+                    "section_failed",
+                    reading_id=reading.id,
+                    section_id=section.id,
+                    attempt_count=section.attempt_count,
+                    error_category="terminal" if not retryable else "exhausted",
+                )
                 break
 
         db.refresh(reading)
@@ -179,6 +206,14 @@ async def enqueue_reading(reading_id: int) -> None:
         await start_worker()
     assert _queue is not None
     await _queue.put(reading_id)
+    incr("queue_enqueues")
+    log_event("reading_enqueued", reading_id=reading_id, queue_depth=_queue.qsize())
+
+
+def queue_depth() -> int:
+    if _queue is None:
+        return 0
+    return _queue.qsize()
 
 
 async def _enqueue_after(reading_id: int, delay: float) -> None:

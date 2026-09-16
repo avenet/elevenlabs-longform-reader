@@ -10,6 +10,7 @@ from typing import Protocol
 from elevenlabs.client import ElevenLabs
 
 from app.config import settings
+from app.services.metrics import incr, log_event, timed
 from app.services.storage import cache_audio_path
 
 _cache_locks_guard = threading.Lock()
@@ -93,28 +94,40 @@ def generate_speech(
     destination.parent.mkdir(parents=True, exist_ok=True)
 
     if cached.exists() and cached.stat().st_size > 0:
+        incr("tts_cache_hits")
+        log_event("tts_cache_hit", cache_key=cache_key, chars=len(text))
         return _copy_cached_audio(cached, destination)
 
     lock = _lock_for_cache_key(cache_key)
     with lock:
         if cached.exists() and cached.stat().st_size > 0:
+            incr("tts_cache_hits")
+            log_event("tts_cache_hit", cache_key=cache_key, chars=len(text))
             return _copy_cached_audio(cached, destination)
 
         active_client = client or get_client(timeout=timeout)
-        audio_iter = active_client.text_to_speech.convert(
-            voice_id=voice_id,
-            text=text,
-            model_id=model_id,
-            output_format="mp3_44100_128",
-        )
+        incr("tts_cache_misses")
+        with timed("elevenlabs_latency"):
+            audio_iter = active_client.text_to_speech.convert(
+                voice_id=voice_id,
+                text=text,
+                model_id=model_id,
+                output_format="mp3_44100_128",
+            )
 
-        chunks: list[bytes] = []
-        for chunk in audio_iter:
-            if isinstance(chunk, bytes):
-                chunks.append(chunk)
+            chunks: list[bytes] = []
+            for chunk in audio_iter:
+                if isinstance(chunk, bytes):
+                    chunks.append(chunk)
 
-        audio_bytes = b"".join(chunks)
+            audio_bytes = b"".join(chunks)
         _write_cache_atomically(cached, audio_bytes)
+        log_event(
+            "tts_generated",
+            cache_key=cache_key,
+            chars=len(text),
+            bytes=len(audio_bytes),
+        )
         return _copy_cached_audio(cached, destination)
 
 

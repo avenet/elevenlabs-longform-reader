@@ -14,6 +14,7 @@ from app.services.limits import (
     validate_text_size,
     validate_upload_content_type,
 )
+from app.services.metrics import incr, log_event
 from app.services.splitter import split_text
 from app.services.tts import build_cache_key
 from app.services.worker import enqueue_reading
@@ -110,6 +111,18 @@ async def create_reading(
 
     db.commit()
     db.refresh(reading)
+    total_chars = sum(section.char_count for section in reading.sections)
+    incr("readings_created")
+    incr("sections_queued", len(reading.sections))
+    incr("characters_queued", total_chars)
+    log_event(
+        "reading_created",
+        reading_id=reading.id,
+        sections=len(reading.sections),
+        chars=total_chars,
+        voice_id=selected_voice,
+        source="file" if source_filename else "text",
+    )
     await enqueue_reading(reading.id)
     return _reading_out(reading)
 
