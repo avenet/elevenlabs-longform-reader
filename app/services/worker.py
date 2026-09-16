@@ -1,11 +1,14 @@
 import asyncio
+import random
 from concurrent.futures import ThreadPoolExecutor
+from datetime import timedelta
 
 from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.db import SessionLocal
-from app.models import Reading, ReadingStatus, Section, SectionStatus
+from app.models import Reading, ReadingStatus, Section, SectionStatus, utcnow
+from app.services.errors import is_retryable, user_facing_error
 from app.services.storage import section_audio_path
 from app.services.tts import generate_speech
 
@@ -41,6 +44,26 @@ def compute_reading_status(sections: list[Section]) -> ReadingStatus:
     return ReadingStatus.partial
 
 
+def compute_backoff_seconds(attempt: int) -> float:
+    exponent = max(attempt - 1, 0)
+    base = settings.backoff_base_seconds * (2**exponent)
+    capped = min(base, settings.backoff_max_seconds)
+    jitter = random.uniform(0, capped * 0.25)
+    return capped + jitter
+
+
+def section_due_for_processing(section: Section, *, now=None) -> bool:
+    if section.status != SectionStatus.pending:
+        return False
+    current = now or utcnow()
+    if section.next_retry_at is None:
+        return True
+    retry_at = section.next_retry_at
+    if retry_at.tzinfo is None:
+        retry_at = retry_at.replace(tzinfo=current.tzinfo)
+    return retry_at <= current
+
+
 async def _process_section(section_id: int) -> None:
     db: Session = SessionLocal()
     try:
@@ -52,30 +75,53 @@ async def _process_section(section_id: int) -> None:
         if reading is None:
             return
 
-        section.status = SectionStatus.processing
-        reading.status = ReadingStatus.processing
-        db.commit()
-
         dest = section_audio_path(reading.id, section.index)
         loop = asyncio.get_running_loop()
-        try:
-            await loop.run_in_executor(
-                _executor,
-                generate_speech,
-                section.text,
-                reading.voice_id,
-                reading.model_id,
-                dest,
-            )
-            section.audio_path = str(dest)
-            section.status = SectionStatus.ready
-            section.error_message = None
-        except Exception as exc:
-            section.status = SectionStatus.failed
-            section.error_message = str(exc)
-            section.audio_path = None
 
-        db.commit()
+        while True:
+            section.status = SectionStatus.processing
+            reading.status = ReadingStatus.processing
+            section.attempt_count += 1
+            section.next_retry_at = None
+            db.commit()
+
+            try:
+                await loop.run_in_executor(
+                    _executor,
+                    generate_speech,
+                    section.text,
+                    reading.voice_id,
+                    reading.model_id,
+                    dest,
+                )
+                section.audio_path = str(dest)
+                section.status = SectionStatus.ready
+                section.error_message = None
+                section.next_retry_at = None
+                db.commit()
+                break
+            except Exception as exc:
+                retryable = is_retryable(exc)
+                attempts_left = section.attempt_count < settings.max_attempts
+                if retryable and attempts_left:
+                    delay = compute_backoff_seconds(section.attempt_count)
+                    section.error_message = user_facing_error(exc, retrying=True)
+                    section.audio_path = None
+                    section.status = SectionStatus.pending
+                    section.next_retry_at = utcnow() + timedelta(seconds=delay)
+                    db.commit()
+                    await asyncio.sleep(delay)
+                    db.refresh(section)
+                    db.refresh(reading)
+                    continue
+
+                section.status = SectionStatus.failed
+                section.error_message = user_facing_error(exc, retrying=False)
+                section.audio_path = None
+                section.next_retry_at = None
+                db.commit()
+                break
+
         db.refresh(reading)
         reading.status = compute_reading_status(list(reading.sections))
         db.commit()
@@ -97,10 +143,11 @@ async def _worker_loop() -> None:
                 reading = db.get(Reading, reading_id)
                 if reading is None:
                     continue
+                now = utcnow()
                 section_ids = [
                     section.id
                     for section in reading.sections
-                    if section.status in (SectionStatus.pending, SectionStatus.failed)
+                    if section_due_for_processing(section, now=now)
                 ]
                 reading.status = ReadingStatus.processing
                 db.commit()
