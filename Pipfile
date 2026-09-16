@@ -20,5 +20,15 @@ ruff = "*"
 httpx = "*"
 pre-commit = "*"
 
+[scripts]
+lint = "ruff check ."
+fmt = "ruff format ."
+lint-fixup = "ruff check --fix ."
+test = "pytest"
+test-unit = "pytest -m 'not integration'"
+test-live = "pytest -m integration"
+serve = "uvicorn app.main:app --reload"
+check = "bash -c 'ruff check . && pytest -m \"not integration\"'"
+
 [requires]
 python_version = "3.14"

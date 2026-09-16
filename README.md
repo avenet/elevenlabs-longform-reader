@@ -32,12 +32,27 @@ Optional settings:
 ## Run
 
 ```bash
-pipenv run uvicorn app.main:app --reload
+pipenv run serve
+# or: make serve
 ```
 
 Open [http://127.0.0.1:8000](http://127.0.0.1:8000).
 
 API docs are available at [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs).
+
+Common shortcuts (`pipenv run …` or `make …`):
+
+| Command | What it does |
+|---------|----------------|
+| `serve` | Start uvicorn with reload |
+| `lint` | Ruff check |
+| `fmt` | Ruff format |
+| `lint-fixup` | Ruff check with autofix |
+| `test` | Full pytest suite |
+| `test-unit` | Pytest without live ElevenLabs |
+| `test-live` | Live ElevenLabs integration tests |
+| `check` | Lint + mocked tests |
+| `make help` | List Makefile targets |
 
 ## Usage
 

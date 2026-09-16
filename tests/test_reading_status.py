@@ -33,15 +33,17 @@ def test_pending_only_is_queued():
 
 
 def test_processing_is_processing():
-    assert compute_reading_status(
-        _sections(SectionStatus.processing, SectionStatus.pending)
-    ) == ReadingStatus.processing
+    assert (
+        compute_reading_status(_sections(SectionStatus.processing, SectionStatus.pending))
+        == ReadingStatus.processing
+    )
 
 
 def test_ready_plus_pending_is_processing():
-    assert compute_reading_status(
-        _sections(SectionStatus.ready, SectionStatus.pending)
-    ) == ReadingStatus.processing
+    assert (
+        compute_reading_status(_sections(SectionStatus.ready, SectionStatus.pending))
+        == ReadingStatus.processing
+    )
 
 
 def test_empty_sections_failed():
