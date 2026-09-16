@@ -6,6 +6,10 @@ from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.models import Reading, SectionStatus
+from app.services.errors import (
+    AUDIO_NOT_READY_MESSAGE,
+    READING_NOT_FOUND_MESSAGE,
+)
 
 router = APIRouter(prefix="/api/readings", tags=["audio"])
 
@@ -18,14 +22,14 @@ def stream_section_audio(
 ) -> FileResponse:
     reading = db.get(Reading, reading_id)
     if reading is None:
-        raise HTTPException(status_code=404, detail="Reading not found")
+        raise HTTPException(status_code=404, detail=READING_NOT_FOUND_MESSAGE)
 
     section = next((s for s in reading.sections if s.index == index), None)
     if section is None:
         raise HTTPException(status_code=404, detail="Section not found")
 
     if section.status != SectionStatus.ready or not section.audio_path:
-        raise HTTPException(status_code=404, detail="Audio not ready")
+        raise HTTPException(status_code=404, detail=AUDIO_NOT_READY_MESSAGE)
 
     path = Path(section.audio_path)
     if not path.exists():

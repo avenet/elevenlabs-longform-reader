@@ -5,6 +5,7 @@ from app.config import settings
 from app.db import get_db
 from app.models import Reading, ReadingStatus, Section, SectionStatus
 from app.schemas import ReadingOut, SectionOut
+from app.services.errors import NO_SECTIONS_MESSAGE, map_input_error
 from app.services.extractor import extract_from_bytes, extract_from_text
 from app.services.limits import (
     InputLimitError,
@@ -76,16 +77,15 @@ async def create_reading(
     except InputLimitError as exc:
         raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise HTTPException(status_code=400, detail=map_input_error(exc)) from exc
 
     chunks = split_text(body)
     if not chunks:
-        raise HTTPException(status_code=400, detail="No readable sections found")
+        raise HTTPException(status_code=400, detail=NO_SECTIONS_MESSAGE)
     try:
         validate_section_count(len(chunks))
     except InputLimitError as exc:
         raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
-
     selected_voice = voice_id or settings.elevenlabs_voice_id
     reading = Reading(
         title=(title or "Untitled reading").strip() or "Untitled reading",
