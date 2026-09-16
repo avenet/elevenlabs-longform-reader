@@ -30,7 +30,7 @@ async def lifespan(_: FastAPI):
     yield
 
 
-app = FastAPI(title="Long-form Reading Service", lifespan=lifespan)
+app = FastAPI(title="elevenlabs-longform-reader", lifespan=lifespan)
 app.include_router(readings.router)
 app.include_router(audio.router)
 app.include_router(voices.router)
