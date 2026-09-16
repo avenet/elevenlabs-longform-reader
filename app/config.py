@@ -20,6 +20,14 @@ class Settings(BaseSettings):
     section_target_chars: int = 3000
     section_max_chars: int = 3500
     worker_concurrency: int = 2
+    request_timeout_seconds: float = 60.0
+    max_attempts: int = 3
+    backoff_base_seconds: float = 1.0
+    backoff_max_seconds: float = 30.0
+    max_upload_bytes: int = 5 * 1024 * 1024
+    max_text_chars: int = 200_000
+    max_sections: int = 200
+    allowed_content_types: str = "text/plain,application/pdf"
 
 
 settings = Settings()
