@@ -8,7 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from app.db import init_db
 from app.routers import audio, readings, voices
 from app.services.storage import ensure_storage
-from app.services.worker import start_worker
+from app.services.worker import recover_pending, start_worker
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 
@@ -18,6 +18,7 @@ async def lifespan(_: FastAPI):
     ensure_storage()
     init_db()
     await start_worker()
+    await recover_pending()
     yield
 
 

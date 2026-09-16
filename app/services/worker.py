@@ -179,3 +179,51 @@ async def enqueue_reading(reading_id: int) -> None:
         await start_worker()
     assert _queue is not None
     await _queue.put(reading_id)
+
+
+async def _enqueue_after(reading_id: int, delay: float) -> None:
+    await asyncio.sleep(delay)
+    await enqueue_reading(reading_id)
+
+
+async def recover_pending() -> list[int]:
+    db = SessionLocal()
+    try:
+        now = utcnow()
+        stuck = db.query(Section).filter(Section.status == SectionStatus.processing).all()
+        for section in stuck:
+            section.status = SectionStatus.pending
+            section.next_retry_at = None
+        db.commit()
+
+        pending = db.query(Section).filter(Section.status == SectionStatus.pending).all()
+        due_reading_ids: set[int] = set()
+        delayed: dict[int, float] = {}
+
+        for section in pending:
+            if section_due_for_processing(section, now=now):
+                due_reading_ids.add(section.reading_id)
+                continue
+            if section.next_retry_at is None:
+                continue
+            retry_at = section.next_retry_at
+            if retry_at.tzinfo is None:
+                retry_at = retry_at.replace(tzinfo=now.tzinfo)
+            delay = max((retry_at - now).total_seconds(), 0.0)
+            existing = delayed.get(section.reading_id)
+            if existing is None or delay < existing:
+                delayed[section.reading_id] = delay
+
+        enqueued: list[int] = []
+        for reading_id in sorted(due_reading_ids):
+            await enqueue_reading(reading_id)
+            enqueued.append(reading_id)
+
+        for reading_id, delay in delayed.items():
+            if reading_id in due_reading_ids:
+                continue
+            asyncio.create_task(_enqueue_after(reading_id, delay))
+
+        return enqueued
+    finally:
+        db.close()
