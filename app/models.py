@@ -1,17 +1,18 @@
-import enum
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from enum import StrEnum
 
-from sqlalchemy import DateTime, Enum, ForeignKey, Integer, String, Text
+from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
 
 
 def utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
-class ReadingStatus(str, enum.Enum):
+class ReadingStatus(StrEnum):
     queued = "queued"
     processing = "processing"
     ready = "ready"
@@ -19,7 +20,7 @@ class ReadingStatus(str, enum.Enum):
     failed = "failed"
 
 
-class SectionStatus(str, enum.Enum):
+class SectionStatus(StrEnum):
     pending = "pending"
     processing = "processing"
     ready = "ready"
@@ -34,7 +35,7 @@ class Reading(Base):
     voice_id: Mapped[str] = mapped_column(String(64))
     model_id: Mapped[str] = mapped_column(String(64))
     status: Mapped[ReadingStatus] = mapped_column(
-        Enum(ReadingStatus), default=ReadingStatus.queued
+        SAEnum(ReadingStatus), default=ReadingStatus.queued
     )
     source_filename: Mapped[str | None] = mapped_column(String(255), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
@@ -42,7 +43,7 @@ class Reading(Base):
         DateTime(timezone=True), default=utcnow, onupdate=utcnow
     )
 
-    sections: Mapped[list["Section"]] = relationship(
+    sections: Mapped[list[Section]] = relationship(
         "Section",
         back_populates="reading",
         cascade="all, delete-orphan",
@@ -58,11 +59,11 @@ class Section(Base):
     index: Mapped[int] = mapped_column(Integer)
     text: Mapped[str] = mapped_column(Text)
     status: Mapped[SectionStatus] = mapped_column(
-        Enum(SectionStatus), default=SectionStatus.pending
+        SAEnum(SectionStatus), default=SectionStatus.pending
     )
     cache_key: Mapped[str] = mapped_column(String(64), index=True)
     audio_path: Mapped[str | None] = mapped_column(String(512), nullable=True)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     char_count: Mapped[int] = mapped_column(Integer, default=0)
 
-    reading: Mapped["Reading"] = relationship("Reading", back_populates="sections")
+    reading: Mapped[Reading] = relationship("Reading", back_populates="sections")

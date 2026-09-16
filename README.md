@@ -4,7 +4,7 @@ Turn long text into spoken audio with ElevenLabs. Paste text or upload a `.txt` 
 
 ## Requirements
 
-- Python 3.10+
+- Python 3.14+
 - [Pipenv](https://pipenv.pypa.io/)
 - An [ElevenLabs](https://elevenlabs.io/) API key
 
