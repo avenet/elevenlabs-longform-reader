@@ -26,3 +26,6 @@ asyncio_mode = "auto"
 testpaths = ["tests"]
 pythonpath = ["."]
 addopts = "-q"
+markers = [
+    "integration: live ElevenLabs calls requiring ELEVENLABS_TEST_API_KEY",
+]

@@ -14,6 +14,13 @@ from app.db import Base, engine
 from app.services.storage import ensure_storage
 
 
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers",
+        "integration: live ElevenLabs calls requiring ELEVENLABS_TEST_API_KEY",
+    )
+
+
 @pytest.fixture(autouse=True)
 def fresh_database():
     Base.metadata.drop_all(bind=engine)
@@ -29,3 +36,11 @@ def client():
 
     with TestClient(app) as test_client:
         yield test_client
+
+
+@pytest.fixture
+def elevenlabs_test_api_key():
+    key = (os.environ.get("ELEVENLABS_TEST_API_KEY") or "").strip()
+    if not key:
+        pytest.skip("ELEVENLABS_TEST_API_KEY is not set")
+    return key
