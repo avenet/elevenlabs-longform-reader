@@ -28,6 +28,8 @@ class ReadingOut(BaseModel):
     created_at: datetime
     updated_at: datetime
     sections: list[SectionOut]
+    section_count: int = 0
+    total_char_count: int = 0
 
 
 class VoiceOut(BaseModel):

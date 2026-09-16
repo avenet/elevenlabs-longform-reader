@@ -6,6 +6,13 @@ from app.db import get_db
 from app.models import Reading, ReadingStatus, Section, SectionStatus
 from app.schemas import ReadingOut, SectionOut
 from app.services.extractor import extract_from_bytes, extract_from_text
+from app.services.limits import (
+    InputLimitError,
+    read_upload_limited,
+    validate_section_count,
+    validate_text_size,
+    validate_upload_content_type,
+)
 from app.services.splitter import split_text
 from app.services.tts import build_cache_key
 from app.services.worker import enqueue_reading
@@ -26,6 +33,7 @@ def _section_out(section: Section) -> SectionOut:
 
 
 def _reading_out(reading: Reading) -> ReadingOut:
+    sections = [_section_out(section) for section in reading.sections]
     return ReadingOut(
         id=reading.id,
         title=reading.title,
@@ -35,7 +43,9 @@ def _reading_out(reading: Reading) -> ReadingOut:
         source_filename=reading.source_filename,
         created_at=reading.created_at,
         updated_at=reading.updated_at,
-        sections=[_section_out(section) for section in reading.sections],
+        sections=sections,
+        section_count=len(sections),
+        total_char_count=sum(section.char_count for section in reading.sections),
     )
 
 
@@ -50,7 +60,8 @@ async def create_reading(
     source_filename = None
     try:
         if file is not None and file.filename:
-            data = await file.read()
+            validate_upload_content_type(file.content_type)
+            data = await read_upload_limited(file)
             if not data:
                 raise ValueError("Uploaded file is empty")
             body = extract_from_bytes(file.filename, data)
@@ -58,15 +69,22 @@ async def create_reading(
             if not title:
                 title = file.filename.rsplit(".", 1)[0]
         elif text:
+            validate_text_size(text)
             body = extract_from_text(text)
         else:
             raise ValueError("Provide either text or a .txt/.pdf file")
+    except InputLimitError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     chunks = split_text(body)
     if not chunks:
         raise HTTPException(status_code=400, detail="No readable sections found")
+    try:
+        validate_section_count(len(chunks))
+    except InputLimitError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
     selected_voice = voice_id or settings.elevenlabs_voice_id
     reading = Reading(
