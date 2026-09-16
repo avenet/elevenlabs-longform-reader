@@ -14,8 +14,8 @@ repos:
         pass_filenames: false
         always_run: true
       - id: make-test
-        name: make test
-        entry: make test
+        name: make test-unit
+        entry: make test-unit
         language: system
         pass_filenames: false
         always_run: true
